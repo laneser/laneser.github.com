@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>BlockingCollection in C# - laneser blog</title>
+  <meta name="renderer" content="webkit" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+<meta name="theme-color" content="#f8f5ec" />
+<meta name="msapplication-navbutton-color" content="#f8f5ec">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="#f8f5ec">
+
+
+<meta name="author" content="laneser" />
+  <meta name="description" content="看到 BlockingCollection 這個 class, Producer-consumer pattern 用它來寫實在是太愉悅了. 原本是需要 lock queue, 還要在拿不到東西的時候進行 wait event handler 等等動作, 現在只要短短幾行 foreach (var data in queue.GetConsumingEnumerable(cts.Token)) { try { writefunc(data); } catch (Exception ex) {" />
+
+  <meta name="keywords" content="Hugo, theme, even" />
+
+
+
+
+
+
+<meta name="generator" content="Hugo 0.38-DEV" />
+
+
+<link rel="canonical" href="http://laneser.github.com/post/2013-02-27-blockingcollection-in-c-number/" />
+
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+
+
+
+
+
+
+
+<link href="/dist/even.min.css?v=3.1.1" rel="stylesheet">
+<link href="/lib/fancybox/jquery.fancybox-3.1.20.min.css" rel="stylesheet">
+
+
+
+
+<meta property="og:title" content="BlockingCollection in C#" />
+<meta property="og:description" content="看到 BlockingCollection 這個 class, Producer-consumer pattern 用它來寫實在是太愉悅了. 原本是需要 lock queue, 還要在拿不到東西的時候進行 wait event handler 等等動作, 現在只要短短幾行 foreach (var data in queue.GetConsumingEnumerable(cts.Token)) { try { writefunc(data); } catch (Exception ex) {" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://laneser.github.com/post/2013-02-27-blockingcollection-in-c-number/" />
+
+
+
+<meta property="article:published_time" content="2013-02-27T11:49:45&#43;08:00"/>
+
+<meta property="article:modified_time" content="2013-02-27T11:49:45&#43;08:00"/>
+
+
+
+
+
+
+
+
+
+
+
+<meta itemprop="name" content="BlockingCollection in C#">
+<meta itemprop="description" content="看到 BlockingCollection 這個 class, Producer-consumer pattern 用它來寫實在是太愉悅了. 原本是需要 lock queue, 還要在拿不到東西的時候進行 wait event handler 等等動作, 現在只要短短幾行 foreach (var data in queue.GetConsumingEnumerable(cts.Token)) { try { writefunc(data); } catch (Exception ex) {">
+
+
+<meta itemprop="datePublished" content="2013-02-27T11:49:45&#43;08:00" />
+<meta itemprop="dateModified" content="2013-02-27T11:49:45&#43;08:00" />
+<meta itemprop="wordCount" content="973">
+
+
+
+<meta itemprop="keywords" content="" />
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="BlockingCollection in C#"/>
+<meta name="twitter:description" content="看到 BlockingCollection 這個 class, Producer-consumer pattern 用它來寫實在是太愉悅了. 原本是需要 lock queue, 還要在拿不到東西的時候進行 wait event handler 等等動作, 現在只要短短幾行 foreach (var data in queue.GetConsumingEnumerable(cts.Token)) { try { writefunc(data); } catch (Exception ex) {"/>
+
+<!--[if lte IE 9]>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js"></script>
+<![endif]-->
+
+<!--[if lt IE 9]>
+  <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+<![endif]-->
+
+</head>
+<body>
+  <div id="mobile-navbar" class="mobile-navbar">
+  <div class="mobile-header-logo">
+    <a href="/" class="logo">Laneser blog</a>
+  </div>
+  <div class="mobile-navbar-icon">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+</div>
+<nav id="mobile-menu" class="mobile-menu slideout-menu">
+  <ul class="mobile-menu-list">
+    <a href="/">
+        <li class="mobile-menu-item">Home</li>
+      </a><a href="/post/">
+        <li class="mobile-menu-item">Archives</li>
+      </a><a href="/tags/">
+        <li class="mobile-menu-item">Tags</li>
+      </a><a href="/categories/">
+        <li class="mobile-menu-item">Categories</li>
+      </a><a href="/about/">
+        <li class="mobile-menu-item">關於</li>
+      </a>
+  </ul>
+</nav>
+  <div class="container" id="mobile-panel">
+    <header id="header" class="header">
+        <div class="logo-wrapper">
+  <a href="/" class="logo">Laneser blog</a>
+</div>
+
+<nav class="site-navbar">
+  <ul id="menu" class="menu">
+    <li class="menu-item">
+        <a class="menu-item-link" href="/">Home</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/post/">Archives</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/tags/">Tags</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/categories/">Categories</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/about/">關於</a>
+      </li>
+  </ul>
+</nav>
+    </header>
+
+    <main id="main" class="main">
+      <div class="content-wrapper">
+        <div id="content" class="content">
+          <article class="post">
+    
+    <header class="post-header">
+      <h1 class="post-title">BlockingCollection in C#</h1>
+
+      <div class="post-meta">
+        <span class="post-time"> 2013-02-27 </span>
+        <div class="post-category">
+            
+              <a href="/categories/csharp/"> CSharp </a>
+            
+          </div>
+        
+        
+      </div>
+    </header>
+
+    
+    
+<div class="post-toc" id="post-toc">
+  <h2 class="post-toc-title">Contents</h2>
+  
+  <div class="post-toc-content always-active">
+    
+  </div>
+</div>
+
+    
+    <div class="post-content">
+      <p>看到 BlockingCollection 這個 class,</p>
+
+<p>Producer-consumer pattern 用它來寫實在是太愉悅了.</p>
+
+<p>原本是需要 lock queue, 還要在拿不到東西的時候進行 wait event handler 等等動作,
+現在只要短短幾行</p>
+
+<pre><code class="language-c#">foreach (var data in queue.GetConsumingEnumerable(cts.Token))
+{
+    try
+    {
+        writefunc(data);
+    }
+    catch (Exception ex)
+    {
+        logger.Fatal(ex.ToString());
+    }
+}
+```				
+
+解決了!
+
+如果要加上 multi-thread consumer, 太 easy!
+
+</code></pre>
+
+<p>Parallel.ForEach(queue.GetConsumingEnumerable(cts.Token), data =&gt;
+{
+    try
+    {
+        writefunc(data);
+    }
+    catch (Exception ex)
+    {
+        logger.Fatal(ex.ToString());
+    }
+});</p>
+
+<pre><code>
+
+看看原本的 BatchWriterOld class code:
+
+</code></pre>
+
+<p>public class BatchWriterOld<TData> : IDisposable
+{
+    static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();</p>
+
+<pre><code>private Thread writerThread;
+private bool writethreadend = false;
+
+private List&lt;TData&gt; cache;
+private EventWaitHandle cacheWaitHandle;
+
+private TimeSpan waitgap;
+
+public delegate void BatchWrite(List&lt;TData&gt; data);
+
+private BatchWrite batchwritefunc;
+
+public BatchWriterOld(TimeSpan waitGap, BatchWrite writefunc)
+{
+    waitgap = waitGap;
+    batchwritefunc = writefunc;
+    logger.Info(&quot;Batch writer started.&quot;);
+    writethreadend = false;
+    cache = new List&lt;TData&gt;();
+    cacheWaitHandle = new EventWaitHandle(true, EventResetMode.ManualReset);
+    writerThread = new Thread(() =&gt; writeThreadExecute());
+    writerThread.Start();
+}
+
+public void AddData(IEnumerable&lt;TData&gt; data)
+{
+    lock (cache)
+    {
+        cache.AddRange(data);
+        cacheWaitHandle.Set();
+    }
+}
+
+public void Flush()
+{
+    var currentMutations = new List&lt;TData&gt;();
+    lock (cache)
+    {
+        currentMutations.AddRange(cache);
+        cache.Clear();
+        cacheWaitHandle.Reset();
+    }
+    if (currentMutations.Count == 0)
+        return;
+
+    try
+    {
+        batchwritefunc(currentMutations);
+    }
+    catch (Exception ex)
+    {
+        logger.Fatal(ex.ToString());
+    }
+}
+
+private void writeThreadExecute()
+{
+    while (writethreadend == false)
+    {
+        try
+        {
+            Flush();
+        }
+        catch (Exception ex)
+        {
+            logger.Fatal(ex.ToString());
+        }
+        cacheWaitHandle.WaitOne(waitgap);
+    }
+}
+
+public void Dispose()
+{
+    //Flush();
+}
+</code></pre>
+
+<p>}</p>
+
+<pre><code>
+ 跟新的 BatchWriter class.
+ 
+</code></pre>
+
+<p>public class BatchWriter<TData> : IDisposable
+{
+    private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+    private Task executeTask;
+    private BlockingCollection<IEnumerable<TData>&gt; queue;
+    private Action<IEnumerable<TData>&gt; batchwritefunc;
+    private CancellationTokenSource cts;</p>
+
+<pre><code>public BatchWriter(Action&lt;IEnumerable&lt;TData&gt;&gt; writefunc)
+{
+    batchwritefunc = writefunc;
+    logger.Info(&quot;Batch writer started.&quot;);
+    queue = new BlockingCollection&lt;IEnumerable&lt;TData&gt;&gt;();
+    cts = new CancellationTokenSource();
+    executeTask = Task.Factory.StartNew(() =&gt;
+    {
+        foreach (var data in queue.GetConsumingEnumerable(cts.Token))
+        {
+            try
+            {
+                writefunc(data);
+            }
+            catch (Exception ex)
+            {
+                logger.Fatal(ex.ToString());
+            }
+        }
+    }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+}
+
+public void AddData(IEnumerable&lt;TData&gt; data)
+{
+    queue.Add(data);
+}
+
+public void Dispose()
+{
+    try
+    {
+        queue.CompleteAdding();
+    }
+    catch (Exception ex)
+    {
+        logger.Fatal(ex.ToString());
+    }
+    logger.Info(&quot;Batch writer ended.&quot;);
+}
+</code></pre>
+
+<p>}</p>
+
+<pre><code>
+
+Multi-thread consumer version
+
+</code></pre>
+
+<p>public class BatchWriterMultiThread<TData> : IDisposable
+{
+    private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+    private Task executeTask;
+    private BlockingCollection<IEnumerable<TData>&gt; queue;
+    private Action<IEnumerable<TData>&gt; batchwritefunc;
+    private CancellationTokenSource cts;</p>
+
+<pre><code>public BatchWriterMultiThread(Action&lt;IEnumerable&lt;TData&gt;&gt; writefunc)
+{
+    batchwritefunc = writefunc;
+    logger.Info(&quot;Batch writer started.&quot;);
+    queue = new BlockingCollection&lt;IEnumerable&lt;TData&gt;&gt;();
+    cts = new CancellationTokenSource();
+    executeTask = Task.Factory.StartNew(() =&gt;
+    {
+        Parallel.ForEach(queue.GetConsumingEnumerable(cts.Token), data =&gt;
+        {
+            try
+            {
+                writefunc(data);
+            }
+            catch (Exception ex)
+            {
+                logger.Fatal(ex.ToString());
+            }
+        });
+    }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+}
+
+public void AddData(IEnumerable&lt;TData&gt; data)
+{
+    queue.Add(data);
+}
+
+public void Dispose()
+{
+    try
+    {
+        queue.CompleteAdding();
+    }
+    catch (Exception ex)
+    {
+        logger.Fatal(ex.ToString());
+    }
+    logger.Info(&quot;Batch writer ended.&quot;);
+}
+</code></pre>
+
+<p>}</p>
+
+<pre><code>
+測試用的 program
+
+</code></pre>
+
+<p>using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;</p>
+
+<p>namespace ConsoleApplication1
+{
+    class Program
+    {
+        static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();</p>
+
+<pre><code>    static void Main(string[] args)
+    {
+        Action&lt;IEnumerable&lt;String&gt;&gt; comsumer1 = (s) =&gt;
+        {
+            foreach (var line in s)
+            {
+                Console.WriteLine(string.Format(&quot;ba1 T{2} {0:HHmmss.ffff}: {1}&quot;, DateTime.Now, line, System.Threading.Thread.CurrentThread.ManagedThreadId));
+                Thread.Sleep(100);
+            }
+        };
+
+        BatchWriterOld&lt;string&gt;.BatchWrite comsumer2 = (s) =&gt;
+        {
+            foreach (var line in s)
+            {
+                Console.WriteLine(string.Format(&quot;ba2 {0:HHmmss.ffff}: {1}&quot;, DateTime.Now, line));
+                Thread.Sleep(100);
+            }
+        };
+
+        Action&lt;IEnumerable&lt;String&gt;&gt; comsumer3 = (s) =&gt;
+        {
+            foreach (var line in s)
+            {
+                Console.WriteLine(string.Format(&quot;ba3 T{2} {0:HHmmss.ffff}: {1}&quot;, DateTime.Now, line, System.Threading.Thread.CurrentThread.ManagedThreadId));
+                Thread.Sleep(100);
+            }
+        };
+
+
+        using (var ba1 = new BatchWriter&lt;String&gt;(comsumer1))
+        using (var ba2 = new BatchWriterOld&lt;String&gt;(TimeSpan.FromSeconds(5), comsumer2))
+        using (var ba3 = new BatchWriterMultiThread&lt;String&gt;(comsumer3))
+        {
+            for (int i = 0; i &lt; 10; i++)
+            {
+                ba1.AddData(new string[] { i.ToString() });
+                ba2.AddData(new string[] { i.ToString() });
+                ba3.AddData(new string[] { i.ToString() });
+            }
+
+            Thread.Sleep(TimeSpan.FromSeconds(2));
+
+            for (int i = 10; i &lt; 20; i++)
+            {
+                ba1.AddData(new string[] { i.ToString(), (i + 1).ToString() });
+                ba2.AddData(new string[] { i.ToString(), (i + 1).ToString() });
+                ba3.AddData(new string[] { i.ToString(), (i + 1).ToString() });
+            }
+        }
+
+        Console.WriteLine(&quot;end&quot;);
+        Console.ReadLine();
+    }
+}
+</code></pre>
+
+<p>}
+```</p>
+
+<p>輸出結果</p>
+
+<blockquote>
+<p>ba1 T4 095127.9879: 0<br />
+ba2 095127.9889: 0<br />
+ba3 T6 095127.9899: 0<br />
+ba3 T9 095127.9899: 3<br />
+ba3 T12 095127.9899: 8<br />
+ba3 T14 095127.9899: 7<br />
+ba3 T13 095127.9899: 6<br />
+ba3 T10 095127.9899: 4<br />
+ba3 T11 095127.9899: 5<br />
+ba3 T7 095127.9899: 1<br />
+ba3 T8 095127.9899: 2<br />
+ba2 095128.0900: 1<br />
+ba1 T4 095128.0900: 1<br />
+ba3 T12 095128.0910: 9<br />
+ba2 095128.1910: 2<br />
+ba1 T4 095128.1910: 2<br />
+ba2 095128.2921: 3<br />
+ba1 T4 095128.2921: 3<br />
+ba2 095128.3921: 4<br />
+ba1 T4 095128.3931: 4<br />
+ba2 095128.4932: 5<br />
+ba1 T4 095128.4942: 5<br />
+ba2 095128.5943: 6<br />
+ba1 T4 095128.5953: 6<br />
+ba2 095128.6943: 7<br />
+ba1 T4 095128.6963: 7<br />
+ba2 095128.7954: 8<br />
+ba1 T4 095128.7974: 8<br />
+ba2 095128.8954: 9<br />
+ba1 T4 095128.8984: 9<br />
+ba3 T14 095129.9891: 10<br />
+ba3 T8 095129.9891: 13<br />
+ba3 T11 095129.9891: 14<br />
+ba3 T6 095129.9891: 16<br />
+ba3 T9 095129.9891: 17<br />
+ba2 095129.9891: 10<br />
+ba3 T13 095129.9891: 12<br />
+ba3 T12 095129.9891: 18<br />
+ba3 T16 095129.9891: 19<br />
+ba1 T4 095129.9891: 10<br />
+ba3 T7 095129.9891: 15<br />
+ba3 T10 095129.9891: 11<br />
+end<br />
+ba3 T11 095130.0901: 15<br />
+ba3 T12 095130.0901: 19<br />
+ba3 T7 095130.0901: 16<br />
+ba3 T16 095130.0901: 20<br />
+ba3 T6 095130.0901: 17<br />
+ba3 T9 095130.0901: 18<br />
+ba3 T14 095130.0901: 11<br />
+ba3 T13 095130.0901: 13<br />
+ba3 T8 095130.0901: 14<br />
+ba2 095130.0901: 11<br />
+ba1 T4 095130.0901: 11<br />
+ba3 T10 095130.0911: 12<br />
+ba2 095130.1912: 11<br />
+ba1 T4 095130.1912: 11<br />
+ba2 095130.2922: 12<br />
+ba1 T4 095130.2922: 12<br />
+ba2 095130.3923: 12<br />
+ba1 T4 095130.3933: 12<br />
+ba2 095130.4934: 13<br />
+ba1 T4 095130.4944: 13<br />
+ba2 095130.5934: 13<br />
+ba1 T4 095130.5944: 13<br />
+ba2 095130.6945: 14<br />
+ba1 T4 095130.6955: 14<br />
+ba1 T4 095130.7955: 14<br />
+ba2 095130.7955: 14<br />
+ba2 095130.8966: 15<br />
+ba1 T4 095130.8966: 15<br />
+ba1 T4 095130.9976: 15<br />
+ba2 095130.9976: 15<br />
+ba1 T4 095131.0977: 16<br />
+ba2 095131.0987: 16<br />
+ba1 T4 095131.1988: 16<br />
+ba2 095131.1998: 16<br />
+ba2 095131.2998: 17<br />
+ba1 T4 095131.2998: 17<br />
+ba2 095131.4009: 17<br />
+ba1 T4 095131.4009: 17<br />
+ba2 095131.5009: 18<br />
+ba1 T4 095131.5019: 18<br />
+ba2 095131.6020: 18<br />
+ba1 T4 095131.6020: 18<br />
+ba2 095131.7020: 19<br />
+ba1 T4 095131.7030: 19<br />
+ba2 095131.8031: 19<br />
+ba1 T4 095131.8031: 19<br />
+ba2 095131.9042: 20<br />
+ba1 T4 095131.9042: 20</p>
+</blockquote>
+
+    </div>
+
+    
+    <div class="post-copyright">
+  <p class="copyright-item">
+    <span class="item-title">Author</span>
+    <span class="item-content">laneser</span>
+  </p>
+  <p class="copyright-item">
+    <span class="item-title">LastMod</span>
+    <span class="item-content">2013-02-27</span>
+  </p>
+  
+  
+</div>
+
+    
+    
+
+    <footer class="post-footer">
+      
+
+      
+      <nav class="post-nav">
+        
+          <a class="prev" href="/post/hugo/">
+            <i class="iconfont icon-left"></i>
+            <span class="prev-text nav-default">Hugo post</span>
+            <span class="prev-text nav-mobile">Prev</span>
+          </a>
+        
+      </nav>
+    </footer>
+  </article>
+        </div>
+        
+  
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="social-links">
+      <a href="mailto:laneser.kuo@gmail.com" class="iconfont icon-email" title="email"></a>
+      <a href="https://twitter.com/laneser" class="iconfont icon-twitter" title="twitter"></a>
+      <a href="https://www.facebook.com/laneser" class="iconfont icon-facebook" title="facebook"></a>
+      <a href="https://www.linkedin.com/in/lane-kuo-44718140" class="iconfont icon-linkedin" title="linkedin"></a>
+      <a href="https://plus.google.com/&#43;laneserkuo" class="iconfont icon-google" title="google"></a>
+      <a href="https://github.com/laneser" class="iconfont icon-github" title="github"></a>
+  <a href="http://laneser.github.com/index.xml" type="application/rss+xml" class="iconfont icon-rss" title="rss"></a>
+</div>
+
+<div class="copyright">
+  <span class="power-by">
+    Powered by <a class="hexo-link" href="https://gohugo.io">Hugo</a>
+  </span>
+  <span class="division">|</span>
+  <span class="theme-info">
+    Theme - 
+    <a class="theme-link" href="https://github.com/olOwOlo/hugo-theme-even">Even</a>
+  </span>
+
+  
+
+  <span class="copyright-year">
+    &copy; 
+    2018
+    <span class="heart">
+      <i class="iconfont icon-heart"></i>
+    </span>
+    <span class="author">laneser</span>
+  </span>
+</div>
+    </footer>
+
+    <div class="back-to-top" id="back-to-top">
+      <i class="iconfont icon-up"></i>
+    </div>
+  </div>
+  
+<script src="/lib/highlight/highlight.pack.js?v=20171001"></script><script type="text/javascript" src="/lib/jquery/jquery-3.2.1.min.js"></script>
+  <script type="text/javascript" src="/lib/slideout/slideout-1.0.1.min.js"></script>
+  <script type="text/javascript" src="/lib/fancybox/jquery.fancybox-3.1.20.min.js"></script>
+<script type="text/javascript" src="/dist/even.min.js?v=3.1.1"></script>
+
+
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Csharp on laneser blog</title>
+    <link>http://laneser.github.com/categories/csharp/</link>
+    <description>Recent content in Csharp on laneser blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-TW</language>
+    <lastBuildDate>Wed, 27 Feb 2013 11:49:45 +0800</lastBuildDate>
+    
+	<atom:link href="http://laneser.github.com/categories/csharp/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>BlockingCollection in C#</title>
+      <link>http://laneser.github.com/post/2013-02-27-blockingcollection-in-c-number/</link>
+      <pubDate>Wed, 27 Feb 2013 11:49:45 +0800</pubDate>
+      
+      <guid>http://laneser.github.com/post/2013-02-27-blockingcollection-in-c-number/</guid>
+      <description>看到 BlockingCollection 這個 class, Producer-consumer pattern 用它來寫實在是太愉悅了. 原本是需要 lock queue, 還要在拿不到東西的時候進行 wait event handler 等等動作, 現在只要短短幾行 foreach (var data in queue.GetConsumingEnumerable(cts.Token)) { try { writefunc(data); } catch (Exception ex) {</description>
+    </item>
+    
+  </channel>
+</rss>

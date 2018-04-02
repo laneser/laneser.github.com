@@ -1,0 +1,2 @@
+User-agent: *
+Sitemap: http://laneser.github.com/sitemap.xml
